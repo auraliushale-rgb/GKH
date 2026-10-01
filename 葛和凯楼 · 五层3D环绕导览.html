@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>葛和凯楼 · 五层3D环绕导览</title>
+<style>
+:root{--bg:#eceeea;--ink:#1c2a3a;--teal:#1d98b3;--dim:#667684;--panel:rgba(250,251,250,.88);--red:#c8102e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111b25;--ink:#d6e7ef;--dim:#8ea3b1;--panel:rgba(18,30,42,.9)}}
+:root[data-theme="dark"]{--bg:#111b25;--ink:#d6e7ef;--dim:#8ea3b1;--panel:rgba(18,30,42,.9)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 "Avenir Next",Avenir,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+#stage{position:relative;height:100%;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+h1{position:absolute;left:14px;top:12px;margin:0;font-size:17px;font-weight:600;letter-spacing:.02em;pointer-events:none}
+h1 small{display:block;font-size:11px;font-weight:400;color:var(--dim);letter-spacing:.06em}
+.lb{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;text-align:center;font-size:12px;line-height:1.15;color:var(--ink);padding:2px 5px;background:var(--panel);border-left:2px solid var(--teal);transition:opacity .2s}
+.lb i{display:block;font-style:normal;font-size:10px;color:var(--dim)}
+.lb.wc{border-color:var(--dim);font-size:10px}
+#bar{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);backdrop-filter:blur(6px)}
+#fl{display:flex;gap:6px;margin-bottom:8px}
+#fl button,#ops button{flex:1;font:inherit;color:var(--ink);background:none;border:1px solid var(--dim);border-radius:4px;padding:6px 0;cursor:pointer}
+#fl button.on,#ops button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+#info{font-size:12.5px;max-height:84px;overflow:auto;margin-bottom:8px}
+#info b{font-weight:600}
+#ops{display:flex;gap:8px;align-items:center}
+#ops input{flex:2}
+#ops button{flex:1.2}
+</style></head><body>
+<div id="stage"><canvas id="c"></canvas>
+<h1>葛和凯楼<small>GHK Building · 五层3D导览</small></h1>
+<div id="bar"><div id="fl"></div><div id="info"></div>
+<div id="ops"><span>展开</span><input id="gap" type="range" min="0" max="100" value="30" aria-label="楼层展开距离"><button id="rot" class="on">自转</button></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const K=.0036,H=45,stage=document.getElementById('stage'),cv0=document.getElementById('c');
+const cv=(p,r)=>[(p[0]-r[0])/1.2247*K,(p[1]-r[1])*1.4142*K];
+const quad=(p,L,W)=>{const u=[.866*L,.5*L],v=[.866*W,-.5*W];return[[p[0],p[1]],[p[0]+v[0],p[1]+v[1]],[p[0]+v[0]+u[0],p[1]+v[1]+u[1]],[p[0]+u[0],p[1]+u[1]]]};
+const cen=a=>[a.reduce((s,p)=>s+p[0],0)/a.length,a.reduce((s,p)=>s+p[1],0)/a.length];
+/* 1-2层:梳状翼楼(取自1层/2层图) */
+const wg={cafe:quad([735,735],215,90),c2:quad([558,772],190,90),c3:quad([483,868],190,90),c4:quad([383,968],215,95),
+A:quad([697,1100],200,97),BC:quad([925,1012],215,98),D:[[1045,908],[1140,868],[1335,910],[1330,945],[1285,975],[1190,988],[1130,962]]};
+const R12=[785,1045],EL12=[[785,1045],[890,880]];
+/* 3-5层:三角中庭 */
+const o45=[[757,1055],[1150,717],[1212,762],[1168,858],[1350,958],[1415,945],[1497,988],[1497,1025],[985,1252],[915,1192],[1000,1115],[845,1115],[757,1085]];
+const v45=[[965,1050],[1135,895],[1295,988],[1090,1080]];
+const st1=[[882,972],[1030,858],[1085,885],[945,1010]],st2=[[1085,1105],[1295,1000],[1295,1042],[1100,1130]];
+const o3=[[668,1135],[905,950],[983,873],[1055,918],[1050,962],[1220,1058],[1340,1100],[1340,1132],[1240,1172],[1165,1105],[1095,1135],[1115,1195],[1040,1235],[1025,1225],[925,1310],[865,1250],[895,1215],[830,1265],[750,1210],[668,1170]];
+const v3=[[843,1150],[1000,1015],[1160,1085],[975,1180]];
+const FL=[
+{n:1,ref:R12,el:EL12,wc:[[710,940],[1033,990]],rooms:[
+ {p:wg.cafe,t:'简餐厅',e:'Café',pin:1},{p:wg.BC,t:'工坊',e:'Workshop',pin:1},{p:wg.A,t:'计算机创意空间',e:'CS Playground',pin:1},{p:wg.D,t:'礼堂',e:'Auditorium',pin:1},{p:wg.c2},{p:wg.c3},{p:wg.c4}],
+ info:'简餐厅 · 工坊 · 计算机创意空间(计算机实验室) · 礼堂 · 教室'},
+{n:2,ref:R12,el:EL12,wc:[[710,940],[1033,990]],rooms:[
+ {p:wg.cafe,t:'计算机科学办公区',e:'Computer Science Office',pin:1},{p:wg.c4,t:'迈克尔格雷夫斯建筑与设计学院',e:'Michael Graves College',pin:1},{p:wg.D,t:'设计图书馆',e:'Design Library',pin:1},{p:wg.A},{p:wg.BC},{p:wg.c2},{p:wg.c3}],
+ info:'迈克尔格雷夫斯建筑与设计学院 · 教师办公室 · 院长办公室 · 教室 · 设计图书馆 · 计算机科学办公区'},
+{n:3,ref:[918,1200],el:[[918,1200],[1022,1000]],wc:[[955,940],[745,1120],[1258,1105],[975,1225]],outer:o3,hole:v3,rooms:[
+ {p:[[840,995],[905,950],[940,985],[895,1030]],t:'评图空间',e:'Pin-Up Room',pin:1},{p:[[750,1200],[830,1148],[890,1190],[830,1265]],t:'研讨室',e:'Seminar Room',pin:1},
+ {p:[[1220,1058],[1340,1090],[1465,1100],[1410,1160],[1340,1135]],t:'屋顶花园',e:'Roof Garden',pin:1,flat:1}],
+ info:'评图空间 Pin-Up Room · 屋顶花园 Roof Garden · 研讨室 Seminar Room'},
+{n:4,ref:[1045,1095],el:[[1045,1095],[1155,885]],wc:[[1070,838],[868,1025],[1385,1005],[1092,1135]],outer:o45,hole:v45,rooms:[{p:st1,t:'工作室',e:'Studio',pin:1},{p:st2}],info:'工作室 Studio'},
+{n:5,ref:[1045,1095],el:[[1045,1095],[1155,885]],wc:[[1070,838],[868,1025],[1385,1005],[1092,1135]],outer:o45,hole:v45,rooms:[{p:st1,t:'工作室',e:'Studio',pin:1},{p:st2}],info:'工作室 Studio'}];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(38,1,.1,100);
+const ren=new THREE.WebGLRenderer({canvas:cv0,antialias:true,alpha:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));
+const lineM=[],wallM=[],labels=[];let sel=null;
+const mat=(c,o,line)=>{const m=line?new THREE.LineBasicMaterial({color:c,transparent:true,opacity:o}):new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,side:THREE.DoubleSide,depthWrite:false});m.userData.o=o;m.userData.line=!!line;m.userData.teal=false;return m};
+function ext(f,poly,h,teal,hole,op){
+ const P=a=>a.map(p=>{const q=cv(p,f.ref);return new THREE.Vector2(q[0],-q[1])});
+ const s=new THREE.Shape(P(poly));if(hole)s.holes.push(new THREE.Path(P(hole)));
+ const g=new THREE.ExtrudeGeometry(s,{depth:h*K,bevelEnabled:false});
+ const wm=mat(0xffffff,op,0),lm=mat(0,teal?1:.85,1);wm.userData.teal=teal;wallM.push(wm);lineM.push(lm);f.fm.push(wm,lm);
+ f.inner.add(new THREE.Mesh(g,wm),new THREE.LineSegments(new THREE.EdgesGeometry(g,15),lm));}
+function lab(f,pt,t,e,cls,y){const d=document.createElement('div');d.className='lb '+(cls||'');d.innerHTML='<b>'+t+'</b><i>'+(e||'')+'</i>';stage.appendChild(d);
+ const q=cv(pt,f.ref),a=new THREE.Object3D();a.position.set(q[0],y*K+.03,q[1]);f.g.add(a);labels.push({d,a,f,wc:cls==='wc'});f.fm.push(d)}
+FL.forEach((f,i)=>{f.i=i;f.fm=[];f.g=new THREE.Group();f.inner=new THREE.Group();f.inner.rotation.x=-Math.PI/2;f.g.add(f.inner);scene.add(f.g);
+ if(f.outer)ext(f,f.outer,H,0,f.hole,.1);
+ f.rooms.forEach(r=>{if(r.flat)ext(f,r.p,2,1,0,.5);else ext(f,r.p,H+(f.outer?8:0),!!r.pin,0,r.pin?.3:.14);
+  if(r.t)lab(f,cen(r.p),r.t,r.e,'',H+8)});
+ f.el.forEach(p=>ext(f,quad([p[0]-14,p[1]+8],28,28),H+20,0,0,.2));
+ f.wc.forEach(p=>lab(f,p,'卫生间','WC','wc',H+4));
+ const fl=document.createElement('button');fl.textContent=f.n+'F';fl.onclick=()=>pick(sel===i?null:i);f.btn=fl;});
+const fb=document.getElementById('fl'),info=document.getElementById('info');
+[...FL].reverse().forEach(f=>fb.appendChild(f.btn));
+const all=document.createElement('button');all.textContent='全部';all.onclick=()=>pick(null);all.className='on';fb.appendChild(all);
+function pick(i){sel=i;all.className=i===null?'on':'';FL.forEach(f=>f.btn.className=f.i===i?'on':'');
+ info.innerHTML=i===null?'<b>五层总览</b> 点楼层按钮查看该层全部功能；拖动旋转，双指缩放。':'<b>'+FL[i].n+'层</b> '+FL[i].info}
+pick(null);
+function theme(){const ink=css('--ink'),tl=css('--teal');lineM.forEach(m=>m.color.set(ink));wallM.forEach(m=>m.color.set(m.userData.teal?tl:ink))}
+theme();matchMedia('(prefers-color-scheme:dark)').addEventListener('change',theme);
+const gapEl=document.getElementById('gap');let gap=.3;
+function layout(){gap=gapEl.value/100*1.2+.02;FL.forEach(f=>f.g.position.y=f.i*(H*K+gap))}
+gapEl.oninput=layout;layout();
+const box=new THREE.Box3().setFromObject(scene),ctr=box.getCenter(new THREE.Vector3());
+const S={th:.8,ph:1.05,r:6,auto:true};
+const rb=document.getElementById('rot');rb.onclick=()=>{S.auto=!S.auto;rb.className=S.auto?'on':''};
+const ptrs=new Map();let pd=0;
+cv0.addEventListener('pointerdown',e=>{cv0.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);S.auto=false;rb.className=''});
+cv0.addEventListener('pointerup',e=>ptrs.delete(e.pointerId));cv0.addEventListener('pointercancel',e=>ptrs.delete(e.pointerId));
+cv0.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;const o=ptrs.get(e.pointerId);
+ if(ptrs.size===1){S.th-=(e.clientX-o[0])*.008;S.ph=Math.min(1.5,Math.max(.15,S.ph-(e.clientY-o[1])*.006))}
+ ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+ if(ptrs.size===2){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd)S.r=Math.min(14,Math.max(2.5,S.r*pd/d));pd=d}else pd=0});
+cv0.addEventListener('wheel',e=>{e.preventDefault();S.r=Math.min(14,Math.max(2.5,S.r*(1+e.deltaY*.001)))},{passive:false});
+function size(){const w=stage.clientWidth,h=stage.clientHeight;ren.setSize(w,h,false);cam.aspect=w/h;cam.fov=w<h?52:38;cam.updateProjectionMatrix()}
+addEventListener('resize',size);size();
+const tv=new THREE.Vector3();
+function frame(){if(S.auto)S.th+=.004;
+ const ty=2*(H*K+gap)+.1,t=sel===null?ty:sel*(H*K+gap)+.1,y=cam.position.y;
+ const tgt=new THREE.Vector3(ctr.x,t,ctr.z),k=S.r;
+ cam.position.set(tgt.x+k*Math.sin(S.ph)*Math.sin(S.th),tgt.y+k*Math.cos(S.ph),tgt.z+k*Math.sin(S.ph)*Math.cos(S.th));cam.lookAt(tgt);
+ FL.forEach(f=>{const on=sel===null||sel===f.i;f.fm.forEach(m=>{if(m.userData&&m.userData.o!==undefined)m.opacity=m.userData.o*(on?1:.12)})});
+ ren.render(scene,cam);
+ const w=stage.clientWidth,h=stage.clientHeight;
+ labels.forEach(l=>{l.a.getWorldPosition(tv).project(cam);const on=sel===null?!l.wc:sel===l.f.i;
+  l.d.style.opacity=on&&tv.z<1?1:0;l.d.style.transform='translate(-50%,-50%) translate('+((tv.x*.5+.5)*w)+'px,'+((-tv.y*.5+.5)*h)+'px)'});
+ requestAnimationFrame(frame)}
+frame();
+</script></body></html>
